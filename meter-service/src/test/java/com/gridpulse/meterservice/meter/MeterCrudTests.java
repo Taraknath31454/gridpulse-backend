@@ -54,6 +54,23 @@ class MeterCrudTests {
 	}
 
 	@Test
+	void instanceHeaderReportsActualPortAndCannotBeSpoofedByTheClient() throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/meters/MTR-1001"))
+				.timeout(Duration.ofSeconds(10)).header("X-GridPulse-Instance", "spoofed").GET().build();
+		HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.headers().firstValue("X-GridPulse-Instance")).contains(Integer.toString(port));
+		assertThat(JsonPath.<String>read(response.body(), "$.id")).isEqualTo("MTR-1001");
+	}
+
+	@Test
+	void instanceHeaderIsPresentOnNotFoundResponses() throws Exception {
+		HttpResponse<String> response = request("GET", "/meters/MISSING-METER", null);
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.headers().firstValue("X-GridPulse-Instance")).contains(Integer.toString(port));
+	}
+
+	@Test
 	void existingGetContractAndCaseInsensitiveLookupArePreserved() throws Exception {
 		HttpResponse<String> response = request("GET", "/meters/mtr-1001", null);
 		assertThat(response.statusCode()).isEqualTo(200);
